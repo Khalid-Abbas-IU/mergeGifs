@@ -1,4 +1,4 @@
-import {useEffect} from "react";
+import {useEffect,useState} from "react";
 import './index.css'
 import {fabric} from 'fabric';
 import {pandaImage,playerImg} from "../assets";
@@ -7,18 +7,62 @@ import  {fabricGif} from "./fabricGif";
 // import CCapture from 'ccapture.js-npmfixed';
 
 
-let canvas,capturer;
+let canvas,capturer,recorder,recordedBlobs=[];
 
 const ImageDesigner = () =>{
+    const [recordedBlobss, setRecordedBlobss] = useState([]);
+
     useEffect(() => {
         inItCanvas();
-        // capturer = new CCapture({
-        //     format: 'jpg',
-        //     framerate: 24,
-        //     // verbose: true
-        // });
+        initializeRecorder();
         addGifs()
     },[]);
+
+    const initializeRecorder = () => {
+        // add background image
+        if (!canvas) return;
+        let canvasEl = canvas.getElement(),
+            stream = canvasEl.captureStream(24)
+        recorder = new MediaRecorder(stream,{mimeType : 'video/webm'});
+        recorder.ondataavailable = saveChunks;
+        recorder.onstop = saveRecordedBlobss
+    }
+
+    const startRecording = () => {
+        if (!recorder) return;
+        recorder.start();
+    }
+    const stopRecording = () => {
+        if (!recorder) return;
+        recorder.stop()
+    }
+
+    const saveRecordedBlobss = () => {
+        setRecordedBlobss(recordedBlobs)
+    }
+    function saveChunks(evt) {
+        // store our final video's chunks
+        if (evt.data && evt.data.size > 0) {
+            recordedBlobs.push(evt.data);
+        }
+
+    }
+
+    function downloadGif() {
+        const blob = new Blob(recordedBlobs, { type: 'video/webm' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'mergedGifs.webm';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+
+    }
 
 
     // const animateByRequestTime = (canvasEle) => {
@@ -33,6 +77,7 @@ const ImageDesigner = () =>{
 
     const addGifs=async ()=>{
         // animateByRequestTime(canvas.getElement())
+        startRecording()
         const gif1 = await fabricGif(
             "https://media.giphy.com/media/HufOeXwDOInlK/giphy.gif",
             200,
@@ -70,6 +115,9 @@ const ImageDesigner = () =>{
             canvas.renderAll();
             fabric.util.requestAnimFrame(render);
         });
+        setTimeout(()=>{
+            stopRecording();
+        },5000)
         // setTimeout(()=>{
         //     // cancelAnimation();
         //     // capturer.save(function (blob) {
@@ -129,15 +177,6 @@ const ImageDesigner = () =>{
     const objectRotating=(e)=>{}
     const objectMoving=(e)=>{}
 
-    const downloadGif=()=>{
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.download = 'mergedGif.png';
-        a.href = canvas.toDataURL()
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
 
     return (
         <div className="editor-container">
