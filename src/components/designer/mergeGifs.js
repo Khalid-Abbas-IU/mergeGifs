@@ -4,7 +4,7 @@ import { parseGIF, decompressFrames } from "gifuct-js";
 let canvas,recorder,recordedBlobs=[];
 const [PLAY, PAUSE, STOP] = [0, 1, 2];
 
-export const mergedGifs = (gifs,maxWidth, maxHeight) =>new Promise(async (resolve, reject)=>{
+export const mergedGifs = (gifs,maxWidth, maxHeight,gifDuration) =>new Promise(async (resolve, reject)=>{
     const initializeRecorder = () => {
         // add background image
         if (!canvas) return;
@@ -269,7 +269,7 @@ export const mergedGifs = (gifs,maxWidth, maxHeight) =>new Promise(async (resolv
         startRecording()
         setTimeout(()=>{
             stopRecording();
-        },5000)
+        },gifDuration)
     }
     inItCanvas();
     addGifs()

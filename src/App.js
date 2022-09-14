@@ -29,7 +29,7 @@ function App() {
     },[])
 
     const getMergedGifs =async ()=>{
-        const blob = await mergedGifs(gifs,maxWidth,maxHeight)
+        const blob = await mergedGifs(gifs,maxWidth,maxHeight, 5000)
         if (!blob) return;
         const url = window.URL.createObjectURL(blob);
         // setGifImg(url)

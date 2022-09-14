@@ -298,10 +298,17 @@ const MergedGifsComp = () =>{
         canvas.renderAll();
     }
 
+    const handleUploadGifs=()=>{
+
+    }
+
     return (
         <div className="editor-container">
             <div className={"canvas-main-wrapper"}>
                 <div className="merge-text"> MERGE GIFS</div>
+                <div className="buttons-section">
+                    <button onClick={handleUploadGifs}>Upload Gifs</button>
+                </div>
                 <div className="canvas-section">
                     <canvas id="canvas" width="850" height="600"/>
                 </div>
