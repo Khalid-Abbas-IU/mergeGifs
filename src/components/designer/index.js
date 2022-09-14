@@ -1,56 +1,250 @@
-import {useEffect} from "react";
-import './index.css'
+import {useEffect,useState} from "react";
 import {fabric} from 'fabric';
-import '../fabricOverrids'
-import  {fabricGif} from "./fabricGif";
-import CCapture from 'ccapture.js';
+import { parseGIF, decompressFrames } from "gifuct-js";
 
+let canvas,recorder,recordedBlobs=[];
+const [PLAY, PAUSE, STOP] = [0, 1, 2];
 
-let canvas,capturer;
+fabric.Object.prototype.set({
+    borderColor:'#33333',
+    cornerStyle:"circle",
+    cornerColor:"#33333",
+    cornerSize : 10,
 
-const MergedGifs = () =>{
+})
+
+const MergedGifsComp = () =>{
     useEffect(() => {
         inItCanvas();
-        capturer = new CCapture({
-            format: 'jpg',
-            framerate: 24,
-            // verbose: true
-        });
+        initializeRecorder();
         addGifs()
     },[]);
 
+    const initializeRecorder = () => {
+        // add background image
+        if (!canvas) return;
+        let canvasEl = canvas.getElement(),
+            stream = canvasEl.captureStream(24)
+        recorder = new MediaRecorder(stream,{mimeType : 'video/webm'});
+        recorder.ondataavailable = saveChunks;
+        // recorder.onstop = saveRecordedBlobss
+    }
 
-    const animateByRequestTime = (canvasEle) => {
-        requestAnimationFrame(() => animateByRequestTime(canvasEle))
-        capturer.capture(canvasEle);
+    const startRecording = () => {
+        if (!recorder) return;
+        recorder.start();
     }
-    const cancelAnimation = () => {
-        if (!capturer) return;
-        capturer.stop();
-        cancelAnimationFrame(animateByRequestTime);
+    const stopRecording = () => {
+        if (!recorder) return;
+        recorder.stop()
     }
-    const startRecording = ()=>{
-        animateByRequestTime(canvas.getElement())
-        capturer.start()
-    }
-    const stopRecording = ()=>{
-        cancelAnimation();
-        capturer.save(function (blob) {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = 'tacticsboard.mp4';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            }, 100);
+    function saveChunks(evt) {
+        // store our final video's chunks
+        if (evt.data && evt.data.size > 0) {
+            recordedBlobs.push(evt.data);
+        }
 
+    }
+    function downloadGif() {
+        const blob = new Blob(recordedBlobs, { type: 'video/webm' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'mergedGifs.webm';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+
+    }
+
+
+
+    const gifToSprite = async (gif, maxWidth, maxHeight, maxDuration) => {
+        let arrayBuffer;
+        let error;
+        let frames;
+
+        // if the gif is an input file, get the arrayBuffer with FileReader
+        if (gif.type) {
+            const reader = new FileReader();
+            try {
+                arrayBuffer = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => reject(reader.error);
+                    reader.readAsArrayBuffer(gif);
+                });
+            } catch (err) {
+                error = err;
+            }
+        }
+        // else the gif is a URL or a dataUrl, fetch the arrayBuffer
+        else {
+            try {
+                arrayBuffer = await fetch(gif).then((resp) => resp.arrayBuffer());
+            } catch (err) {
+                error = err;
+            }
+        }
+
+        // Parse and decompress the gif arrayBuffer to frames with the "gifuct-js" library
+        if (!error) frames = decompressFrames(parseGIF(arrayBuffer), true);
+        if (!error && (!frames || !frames.length)) error = "No_frame_error";
+        if (error) {
+            console.error(error);
+            return { error };
+        }
+
+        // Create the needed canvas
+        const dataCanvas = document.createElement("canvas");
+        const dataCtx = dataCanvas.getContext("2d");
+        const frameCanvas = document.createElement("canvas");
+        const frameCtx = frameCanvas.getContext("2d");
+        const spriteCanvas = document.createElement("canvas");
+        const spriteCtx = spriteCanvas.getContext("2d");
+
+        // Get the frames dimensions and delay
+        let [width, height, delay] = [
+            frames[0].dims.width,
+            frames[0].dims.height,
+            frames.reduce((acc, cur) => (acc = !acc ? cur.delay : acc), null)
+        ];
+
+        // Set the Max duration of the gif if any
+        // FIXME handle delay for each frame
+        const duration = frames.length * delay;
+        maxDuration = maxDuration || duration;
+        if (duration > maxDuration) frames.splice(Math.ceil(maxDuration / delay));
+
+        // Set the scale ratio if any
+        maxWidth = maxWidth || width;
+        maxHeight = maxHeight || height;
+        const scale = Math.min(maxWidth / width, maxHeight / height);
+        width = width * scale;
+        height = height * scale;
+
+        //Set the frame and sprite canvas dimensions
+        frameCanvas.width = width;
+        frameCanvas.height = height;
+        spriteCanvas.width = width * frames.length;
+        spriteCanvas.height = height;
+
+        frames.forEach((frame, i) => {
+            // Get the frame imageData from the "frame.patch"
+            const frameImageData = dataCtx.createImageData(
+                frame.dims.width,
+                frame.dims.height
+            );
+            frameImageData.data.set(frame.patch);
+            dataCanvas.width = frame.dims.width;
+            dataCanvas.height = frame.dims.height;
+            dataCtx.putImageData(frameImageData, 0, 0);
+
+            // Draw a frame from the imageData
+            if (frame.disposalType === 2) frameCtx.clearRect(0, 0, width, height);
+            frameCtx.drawImage(
+                dataCanvas,
+                frame.dims.left * scale,
+                frame.dims.top * scale,
+                frame.dims.width * scale,
+                frame.dims.height * scale
+            );
+
+            // Add the frame to the sprite sheet
+            spriteCtx.drawImage(frameCanvas, width * i, 0);
         });
-    }
+
+        // Get the sprite sheet dataUrl
+        const dataUrl = spriteCanvas.toDataURL();
+
+        // Clean the dom, dispose of the unused canvas
+        dataCanvas.remove();
+        frameCanvas.remove();
+        spriteCanvas.remove();
+
+        return {
+            dataUrl,
+            frameWidth: width,
+            framesLength: frames.length,
+            delay
+        };
+    };
+
+    const fabricGif = async (gif, maxWidth, maxHeight, maxDuration) => {
+        const { error, dataUrl, delay, frameWidth, framesLength } = await gifToSprite(
+            gif,
+            maxWidth,
+            maxHeight,
+            maxDuration
+        );
+
+
+        if (error) return { error };
+
+        return new Promise((resolve) => {
+            fabric.Image.fromURL(dataUrl, (img) => {
+                const sprite = img.getElement();
+                let framesIndex = 0;
+                let start = performance.now();
+                let status;
+
+                img.width = frameWidth;
+                img.height = sprite.naturalHeight;
+                img.mode = "image";
+                img.top = 200;
+                img.left = 200;
+
+                img._render = function (ctx) {
+                    if (status === PAUSE || (status === STOP && framesIndex === 0)) {
+                        return;
+                    }
+                    const now = performance.now();
+                    const delta = now - start;
+                    if (delta > delay) {
+                        start = now;
+                        framesIndex++;
+                    }
+                    if (framesIndex === framesLength || status === STOP) {
+                        // img.stop();
+                        framesIndex = 0;
+                    }
+                    ctx.drawImage(
+                        sprite,
+                        frameWidth * framesIndex,
+                        0,
+                        frameWidth,
+                        sprite.height,
+                        -this.width / 2,
+                        -this.height / 2,
+                        frameWidth,
+                        sprite.height
+                    );
+                };
+                img.play = function () {
+                    status = PLAY;
+                    this.dirty = true;
+                };
+                img.pause = function () {
+                    status = PAUSE;
+                    this.dirty = false;
+                };
+                img.stop = function () {
+                    status = STOP;
+                    this.dirty = false;
+                };
+                img.getStatus = () => ["Playing", "Paused", "Stopped"][status];
+
+                img.play();
+                resolve(img);
+            });
+        });
+    };
+
     const addGifs=async ()=>{
+        startRecording()
         const gif1 = await fabricGif(
             "https://media.giphy.com/media/HufOeXwDOInlK/giphy.gif",
             200,
@@ -83,10 +277,14 @@ const MergedGifs = () =>{
         gif4.set({ top: 350, left: 270 });
         canvas.add(gif4);
 
+
         fabric.util.requestAnimFrame(function render() {
             canvas.renderAll();
             fabric.util.requestAnimFrame(render);
         });
+        setTimeout(()=>{
+            stopRecording();
+        },5000)
     }
 
     const inItCanvas =()=>{
@@ -129,37 +327,24 @@ const MergedGifs = () =>{
     const objectRotating=(e)=>{}
     const objectMoving=(e)=>{}
 
-    const downloadGif=()=>{
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.download = 'mergedGif.png';
-        a.href = canvas.toDataURL()
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
 
     return (
-        <>
-            <button onClick={startRecording}>Start Recording</button>
-            <button onClick={stopRecording}>Stop Recording</button>
-            <div className="editor-container">
-                <div className={"canvas-main-wrapper"}>
-                    {/*<div className="buttons-section">*/}
-                    {/*    <button onClick={bgImage}>Add Image</button>*/}
-                    {/*    <button onClick={addOverlayImage}>Add Overlay</button>*/}
-                    {/*    <button className="generate-pdd">Generate New PFP</button>*/}
-                    {/*</div>*/}
-                    <div className="merge-text"> MERGE GIFS</div>
-                    <div className="canvas-section">
-                        <canvas id="canvas" width="850" height="600"/>
-                    </div>
-                    <div className="save-section">
-                        <button className="generate-pdd" onClick={downloadGif}>Merge & Download GIF</button>
-                    </div>
+        <div className="editor-container">
+            <div className={"canvas-main-wrapper"}>
+                {/*<div className="buttons-section">*/}
+                {/*    <button onClick={bgImage}>Add Image</button>*/}
+                {/*    <button onClick={addOverlayImage}>Add Overlay</button>*/}
+                {/*    <button className="generate-pdd">Generate New PFP</button>*/}
+                {/*</div>*/}
+                <div className="merge-text"> MERGE GIFS</div>
+                <div className="canvas-section">
+                    <canvas id="canvas" width="850" height="600"/>
+                </div>
+                <div className="save-section">
+                    <button className="generate-pdd" onClick={downloadGif}>Merge & Download GIF</button>
                 </div>
             </div>
-        </>
+        </div>
     );
 }
-export default MergedGifs;
+export default MergedGifsComp;
