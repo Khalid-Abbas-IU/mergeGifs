@@ -25,9 +25,13 @@ const MergedGifsComp = () =>{
         if (!canvas) return;
         let canvasEl = canvas.getElement(),
             stream = canvasEl.captureStream(24)
-        recorder = new MediaRecorder(stream,{mimeType : 'video/webm'});
+        recorder = new MediaRecorder(stream,{mimeType: 'video/webm;codecs=h264'});
         recorder.ondataavailable = saveChunks;
-        // recorder.onstop = saveRecordedBlobss
+        recorder.onstop = onStop
+    }
+
+    const onStop=()=>{
+        downloadGif()
     }
 
     const startRecording = () => {
@@ -51,7 +55,7 @@ const MergedGifsComp = () =>{
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = 'mergedGifs.webm';
+        a.download = 'recordd.webm';
         document.body.appendChild(a);
         a.click();
         setTimeout(() => {
@@ -59,6 +63,15 @@ const MergedGifsComp = () =>{
             window.URL.revokeObjectURL(url);
         }, 100);
 
+    }
+    const addImage = async (imgSrc) => {
+        return new Promise((resolve,reject)=>{
+            fabric.Image.fromURL(imgSrc, function (img) {
+                img.scaleToWidth(200)
+                canvas.add(img);
+                resolve()
+            }, {crossOrigin: 'anonymous'});
+        })
     }
 
 
@@ -244,9 +257,9 @@ const MergedGifsComp = () =>{
     };
 
     const addGifs=async ()=>{
-        startRecording()
+        await addImage('Blue.png')
         const gif1 = await fabricGif(
-            "https://media.giphy.com/media/HufOeXwDOInlK/giphy.gif",
+            "Cigarette.gif",
             200,
             200
         );
@@ -254,7 +267,7 @@ const MergedGifsComp = () =>{
         canvas.add(gif1);
 
         const gif2 = await fabricGif(
-            "https://media.giphy.com/media/11ZSwQNWba4YF2/giphy.gif",
+            "CosmicBlueTongue.gif",
             200,
             200
         );
@@ -262,26 +275,26 @@ const MergedGifsComp = () =>{
         canvas.add(gif2);
 
         const gif3 = await fabricGif(
-            "https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif",
+            "HynoGlasses.gif",
             200,
             200
         );
         gif3.set({ top: 300, left: 50 });
         canvas.add(gif3);
 
-        const gif4 = await fabricGif(
-            "giffy.gif",
+        /*const gif4 = await fabricGif(
+            "Blue.png",
             200,
             200
-        );
-        gif4.set({ top: 350, left: 270 });
-        canvas.add(gif4);
+        );*/
+
 
 
         fabric.util.requestAnimFrame(function render() {
             canvas.renderAll();
             fabric.util.requestAnimFrame(render);
         });
+        startRecording()
         setTimeout(()=>{
             stopRecording();
         },5000)

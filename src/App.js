@@ -23,14 +23,14 @@ const gifs = [
 
 function App() {
     const [gifImg, setGifImg] = useState('')
-    useEffect(async ()=>{
-        const img = await mergedGifs(gifs)
-        setGifImg(img)
-    },[])
+    // useEffect(async ()=>{
+    //     // const img = await mergedGifs(gifs)
+    //     // setGifImg(img)
+    // },[])
   return (
     <div className="App">
-      <img src={gifImg} alt={"img"}/>
-      {/*<MergedGifsComp/>*/}
+      {/*<img src={gifImg} alt={"img"}/>*/}
+      <MergedGifsComp/>
     </div>
   );
 }
