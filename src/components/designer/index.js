@@ -64,10 +64,12 @@ const MergedGifsComp = () =>{
         }, 100);
 
     }
-    const addImage = async (imgSrc) => {
+    const addBackGifOrImage = async (imgSrc,maxWidth,maxHeight) => {
         return new Promise((resolve,reject)=>{
             fabric.Image.fromURL(imgSrc, function (img) {
-                img.scaleToWidth(200)
+                img.scaleToWidth(maxWidth)
+                canvas.setWidth(maxWidth)
+                canvas.setHeight(maxHeight)
                 canvas.add(img);
                 resolve()
             }, {crossOrigin: 'anonymous'});
@@ -257,38 +259,20 @@ const MergedGifsComp = () =>{
     };
 
     const addGifs=async ()=>{
-        await addImage('Blue.png')
-        const gif1 = await fabricGif(
-            "Cigarette.gif",
-            200,
-            200
-        );
-        gif1.set({ top: 50, left: 50 });
-        canvas.add(gif1);
+        let left = 0, top = 0, maxWidth = 500, maxHeight = 500;
 
-        const gif2 = await fabricGif(
-            "CosmicBlueTongue.gif",
-            200,
-            200
-        );
-        gif2.set({ top: 50, left: 300 });
+        await addBackGifOrImage('Blue.png',maxWidth,maxHeight)
+        const gif2 = await fabricGif("CosmicBlueTongue.gif", maxWidth,maxHeight);
+        gif2.set({ top, left });
         canvas.add(gif2);
 
-        const gif3 = await fabricGif(
-            "HynoGlasses.gif",
-            200,
-            200
-        );
-        gif3.set({ top: 300, left: 50 });
+        const gif3 = await fabricGif("HynoGlasses.gif", maxWidth,maxHeight);
+        gif3.set({ top, left });
         canvas.add(gif3);
 
-        /*const gif4 = await fabricGif(
-            "Blue.png",
-            200,
-            200
-        );*/
-
-
+        const gif1 = await fabricGif("Cigarette.gif", maxWidth,maxHeight);
+        gif1.set({ top, left });
+        canvas.add(gif1);
 
         fabric.util.requestAnimFrame(function render() {
             canvas.renderAll();
@@ -301,60 +285,20 @@ const MergedGifsComp = () =>{
     }
 
     const inItCanvas =()=>{
-        canvas = new fabric.Canvas('canvas',{
-            width:850,
-            height:600,
-            backgroundColor:'white',
-            selection: false,
-        })
-        onCanvasEvents(canvas)
-        window.canvas = canvas;
+        canvas = new fabric.StaticCanvas('canvas',{backgroundColor:null,selection: false})
         canvas.renderAll();
     }
-
-    function onCanvasEvents(canvas){
-        canvas.on({
-            'object:added': objectAdded,
-            'selection:created': selectionCreated,
-            'selection:updated': selectionUpdated,
-            'object:moving': objectMoving,
-            'object:modified' : modifiedObject,
-            'object:scaling':objectScaling,
-            'object:scaled':objectScaled,
-            'object:rotating':objectRotating,
-            'mouse:up':mouseUp,
-            'mouse:move':mouseMove,
-            'key:down':onKeyDown,
-        })
-    }
-
-    const onKeyDown = (e) => {}
-    const mouseMove=(e)=>{}
-    const mouseUp=(e)=> {}
-    const objectAdded=(e)=>{}
-    const selectionCreated=(e)=>{}
-    const selectionUpdated=(e)=>{}
-    const modifiedObject=(e)=>{}
-    const objectScaling=(e)=>{}
-    const objectScaled=(e)=>{}
-    const objectRotating=(e)=>{}
-    const objectMoving=(e)=>{}
-
 
     return (
         <div className="editor-container">
             <div className={"canvas-main-wrapper"}>
-                {/*<div className="buttons-section">*/}
-                {/*    <button onClick={bgImage}>Add Image</button>*/}
-                {/*    <button onClick={addOverlayImage}>Add Overlay</button>*/}
-                {/*    <button className="generate-pdd">Generate New PFP</button>*/}
-                {/*</div>*/}
                 <div className="merge-text"> MERGE GIFS</div>
                 <div className="canvas-section">
                     <canvas id="canvas" width="850" height="600"/>
                 </div>
                 <div className="save-section">
-                    <button className="generate-pdd" onClick={downloadGif}>Merge & Download GIF</button>
+                    {/*<button className="generate-pdd" onClick={downloadGif}>Download GIF</button>*/}
+                    <span>It will generate video blob automatically in 6 sec.</span>
                 </div>
             </div>
         </div>
