@@ -4,26 +4,28 @@ import { parseGIF, decompressFrames } from "gifuct-js";
 let canvas,recorder,recordedBlobs=[];
 const [PLAY, PAUSE, STOP] = [0, 1, 2];
 
-export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
-    const initializeRecorder = (canvasEl) => {
-        if (!canvasEl) return;
-        let stream = canvasEl.captureStream(24)
-        recorder = new MediaRecorder(stream,{mimeType : 'video/webm'});
+export const mergedGifs = (gifs,maxWidth, maxHeight) =>new Promise(async (resolve, reject)=>{
+    const initializeRecorder = () => {
+        // add background image
+        if (!canvas) return;
+        let canvasEl = canvas.getElement(),
+            stream = canvasEl.captureStream(24)
+        recorder = new MediaRecorder(stream,{mimeType: 'video/webm;codecs=h264'});
         recorder.ondataavailable = saveChunks;
-        // recorder.onstop = saveRecordedBlobss
+        recorder.onstop = onStop
     }
     const inItCanvas =()=>{
         let canvasEl = window.document.createElement('canvas');
         canvasEl.width = 500;
         canvasEl.id = "canvas";
         canvasEl.height = 400;
-        canvas = new fabric.StaticCanvas(canvasEl,{
-            width:850,
-            height:600,
-            backgroundColor:'white',
-            selection: false,
-        })
+        canvas = new fabric.StaticCanvas('canvas',{backgroundColor:null,selection: false})
+        canvas.renderAll();
         initializeRecorder(canvasEl)
+    }
+
+    const onStop=()=>{
+        downloadGif()
     }
 
     const startRecording = () => {
@@ -33,8 +35,6 @@ export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
     const stopRecording = () => {
         if (!recorder) return;
         if (recorder.state !== "inactive") recorder.stop()
-        // downloadGif()
-        downloadImg()
     }
     function saveChunks(evt) {
         // store our final video's chunks
@@ -45,18 +45,7 @@ export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
     }
     function downloadGif() {
         const blob = new Blob(recordedBlobs, { type: 'video/webm' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'mergedGifs.webm';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }, 100);
-
+        resolve(blob)
     }
 
     function downloadImg() {
@@ -257,14 +246,11 @@ export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
     const loadGifIntoCanvas = ()=>{
         let promises = [];
         for (let i = 0; i < gifs.length; i++) {
+            const {src,maxWidth, maxHeight} = gifs[i];
             promises[i] = new Promise(async (resolve)=>{
-                const gif1 = await fabricGif(
-                    gifs[i].src,
-                    200,
-                    200
-                );
-                gif1.set({ top: gifs[i].dimension.y, left: gifs[i].dimension.x });
-                canvas.add(gif1)
+                const gif = await fabricGif(src, maxWidth,maxHeight);
+                gif.set({ top:0, left:0 });
+                canvas.add(gif);
                 resolve()
             })
         }
@@ -272,15 +258,18 @@ export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
     }
 
     const addGifs=async ()=>{
-        startRecording()
+        canvas.setWidth(maxWidth)
+        canvas.setHeight(maxHeight)
         await loadGifIntoCanvas()
+
         fabric.util.requestAnimFrame(function render() {
             canvas.renderAll();
             fabric.util.requestAnimFrame(render);
         });
+        startRecording()
         setTimeout(()=>{
             stopRecording();
-        },4000)
+        },5000)
     }
     inItCanvas();
     addGifs()

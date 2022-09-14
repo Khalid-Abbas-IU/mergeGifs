@@ -12,7 +12,26 @@ fabric.Object.prototype.set({
     cornerSize : 10,
 
 })
+let left = 0, top = 0, maxWidth = 300, maxHeight = 300;
+const gifs = [
+    {
+        src:'gifs/loading.gif',
+        maxWidth,maxHeight
+    },
+    {
+        src:'gifs/CosmicBlueTongue.gif',
+        maxWidth,maxHeight
+    },
+    {
+        src:'gifs/HynoGlasses.gif',
+        maxWidth,maxHeight
+    },
+    {
+        src:'gifs/Cigarette.gif',
+        maxWidth,maxHeight
+    },
 
+]
 const MergedGifsComp = () =>{
     useEffect(() => {
         inItCanvas();
@@ -64,19 +83,6 @@ const MergedGifsComp = () =>{
         }, 100);
 
     }
-    const addBackGifOrImage = async (imgSrc,maxWidth,maxHeight) => {
-        return new Promise((resolve,reject)=>{
-            fabric.Image.fromURL(imgSrc, function (img) {
-                img.scaleToWidth(maxWidth)
-                canvas.setWidth(maxWidth)
-                canvas.setHeight(maxHeight)
-                canvas.add(img);
-                resolve()
-            }, {crossOrigin: 'anonymous'});
-        })
-    }
-
-
 
     const gifToSprite = async (gif, maxWidth, maxHeight, maxDuration) => {
         let arrayBuffer;
@@ -258,21 +264,24 @@ const MergedGifsComp = () =>{
         });
     };
 
+    const loadGifIntoCanvas = ()=>{
+        let promises = [];
+        for (let i = 0; i < gifs.length; i++) {
+            const {src,maxWidth, maxHeight} = gifs[i];
+            promises[i] = new Promise(async (resolve)=>{
+                const gif = await fabricGif(src, maxWidth,maxHeight);
+                gif.set({ top:0, left:0 });
+                canvas.add(gif);
+                resolve()
+            })
+        }
+        return Promise.all(promises);
+    }
+
     const addGifs=async ()=>{
-        let left = 0, top = 0, maxWidth = 500, maxHeight = 500;
-
-        await addBackGifOrImage('Blue.png',maxWidth,maxHeight)
-        const gif2 = await fabricGif("CosmicBlueTongue.gif", maxWidth,maxHeight);
-        gif2.set({ top, left });
-        canvas.add(gif2);
-
-        const gif3 = await fabricGif("HynoGlasses.gif", maxWidth,maxHeight);
-        gif3.set({ top, left });
-        canvas.add(gif3);
-
-        const gif1 = await fabricGif("Cigarette.gif", maxWidth,maxHeight);
-        gif1.set({ top, left });
-        canvas.add(gif1);
+        canvas.setWidth(maxWidth)
+        canvas.setHeight(maxHeight)
+        await loadGifIntoCanvas()
 
         fabric.util.requestAnimFrame(function render() {
             canvas.renderAll();
