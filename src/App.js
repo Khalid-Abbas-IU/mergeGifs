@@ -1,38 +1,17 @@
-import './App.css';
-import MergedGifsComp from "./components/designer";
 import { mergedGifs } from "./components/designer/mergeGifs";
 import React, {useEffect} from "react";
 
-let left = 0, top = 0, maxWidth = 300, maxHeight = 300;
-const gifs = [
-    {
-        src:'gifs/loading.gif',
-        maxWidth,maxHeight
-    },
-    {
-        src:'gifs/CosmicBlueTongue.gif',
-        maxWidth,maxHeight
-    },
-    {
-        src:'gifs/HynoGlasses.gif',
-        maxWidth,maxHeight
-    },
-    {
-        src:'gifs/Cigarette.gif',
-        maxWidth,maxHeight
-    },
 
-]
+const gifs = ['gifs/loading.gif','gifs/CosmicBlueTongue.gif','gifs/HynoGlasses.gif','gifs/Cigarette.gif']
 function App() {
     useEffect( ()=>{
-        // getMergedGifs()
+        getMergedGifs()
     },[])
 
     const getMergedGifs =async ()=>{
-        const blob = await mergedGifs(gifs,maxWidth,maxHeight, 5000)
+        const blob = await mergedGifs(gifs)
         if (!blob) return;
         const url = window.URL.createObjectURL(blob);
-        // setGifImg(url)
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
@@ -46,7 +25,8 @@ function App() {
     }
   return (
     <div className="App">
-      <MergedGifsComp/>
+        <h2>Function is calling , Please wait for the download</h2>
+        <h4>Downloading...</h4>
     </div>
   );
 }

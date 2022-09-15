@@ -2,9 +2,10 @@ import {fabric} from 'fabric';
 import { parseGIF, decompressFrames } from "gifuct-js";
 
 let canvas,recorder,recordedBlobs=[];
-const [PLAY, PAUSE, STOP] = [0, 1, 2];
+const [PLAY, PAUSE, STOP] = [0, 1, 2],maxWidth = 300, maxHeight = 300,gifDuration=2000;
 
-export const mergedGifs = (gifs,maxWidth, maxHeight,gifDuration) =>new Promise(async (resolve, reject)=>{
+export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
+
     const initializeRecorder = () => {
         // add background image
         if (!canvas) return;
@@ -32,9 +33,10 @@ export const mergedGifs = (gifs,maxWidth, maxHeight,gifDuration) =>new Promise(a
         if (!recorder) return;
         recorder.start();
     }
-    const stopRecording = () => {
+    const stopRecording = (request) => {
         if (!recorder) return;
         if (recorder.state !== "inactive") recorder.stop()
+        cancelAnimationFrame(request)
     }
     function saveChunks(evt) {
         // store our final video's chunks
@@ -47,21 +49,6 @@ export const mergedGifs = (gifs,maxWidth, maxHeight,gifDuration) =>new Promise(a
         const blob = new Blob(recordedBlobs, { type: 'video/webm' });
         resolve(blob)
     }
-
-    function downloadImg() {
-        const dataURL = canvas.toDataURL();
-        // const a = document.createElement('a');
-        // a.download = 'mergedGif.png';
-        // a.href = dataURL;
-        // document.body.appendChild(a);
-        // a.click();
-        // setTimeout(() => {
-        //     document.body.removeChild(a);
-        // }, 100);
-        resolve(dataURL);
-    }
-
-
 
     const gifToSprite = async (gif, maxWidth, maxHeight, maxDuration) => {
         let arrayBuffer;
@@ -194,8 +181,8 @@ export const mergedGifs = (gifs,maxWidth, maxHeight,gifDuration) =>new Promise(a
                 img.width = frameWidth;
                 img.height = sprite.naturalHeight;
                 img.mode = "image";
-                img.top = 200;
-                img.left = 200;
+                img.top = 0;
+                img.left = 0;
 
                 img._render = function (ctx) {
                     if (status === PAUSE || (status === STOP && framesIndex === 0)) {
@@ -237,20 +224,28 @@ export const mergedGifs = (gifs,maxWidth, maxHeight,gifDuration) =>new Promise(a
                 };
                 img.getStatus = () => ["Playing", "Paused", "Stopped"][status];
 
-                img.play();
+                // img.play();
                 resolve(img);
             });
         });
     };
 
-    const loadGifIntoCanvas = ()=>{
+    const getGifsObjs = ()=>{
         let promises = [];
         for (let i = 0; i < gifs.length; i++) {
-            const {src,maxWidth, maxHeight} = gifs[i];
+            const src = gifs[i];
             promises[i] = new Promise(async (resolve)=>{
                 const gif = await fabricGif(src, maxWidth,maxHeight);
-                gif.set({ top:0, left:0 });
-                canvas.add(gif);
+                resolve(gif)
+            })
+        }
+        return Promise.all(promises);
+    }
+    const loadGifIntoCanvas = (gifObjs)=>{
+        let promises = [];
+        for (let i = 0; i < gifObjs.length; i++) {
+            promises[i] = new Promise(async (resolve)=>{
+                canvas.add(gifObjs[i])
                 resolve()
             })
         }
@@ -260,16 +255,19 @@ export const mergedGifs = (gifs,maxWidth, maxHeight,gifDuration) =>new Promise(a
     const addGifs=async ()=>{
         canvas.setWidth(maxWidth)
         canvas.setHeight(maxHeight)
-        await loadGifIntoCanvas()
-
-        fabric.util.requestAnimFrame(function render() {
+        const gifObjs = await getGifsObjs()
+        const isRendered = await loadGifIntoCanvas(gifObjs)
+        if (isRendered) {
             canvas.renderAll();
-            fabric.util.requestAnimFrame(render);
-        });
-        startRecording()
-        setTimeout(()=>{
-            stopRecording();
-        },gifDuration)
+            startRecording()
+            const request = requestAnimationFrame(function render() {
+                canvas.renderAll();
+                fabric.util.requestAnimFrame(render);
+            })
+            setTimeout(() => {
+                stopRecording(request);
+            }, gifDuration)
+        }
     }
     inItCanvas();
     addGifs()
