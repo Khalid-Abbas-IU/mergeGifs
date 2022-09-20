@@ -1,7 +1,7 @@
 import {fabric} from 'fabric';
 import { parseGIF, decompressFrames } from "gifuct-js";
 
-let canvas,recorder,recordedBlobs=[];
+let canvas,recorder,recordedBlobs=[],isRenderEnd = false;
 const [PLAY, PAUSE, STOP] = [0, 1, 2],maxWidth = 300, maxHeight = 300,gifDuration=2000;
 
 export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
@@ -33,11 +33,19 @@ export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
         if (!recorder) return;
         recorder.start();
     }
-    const stopRecording = (request) => {
+    const stopRecording = () => {
         if (!recorder) return;
         if (recorder.state !== "inactive") recorder.stop()
-        cancelAnimationFrame(request)
+        cancelAllAnimationFrames()
     }
+
+    function cancelAllAnimationFrames(){
+        let id = fabric.util.requestAnimFrame(function(){});
+        while(id--){
+            window.cancelAnimationFrame(id);
+        }
+    }
+
     function saveChunks(evt) {
         // store our final video's chunks
         if (evt.data && evt.data.size > 0) {
@@ -170,6 +178,7 @@ export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
 
 
         if (error) return { error };
+        console.log("gif, framesIndex",gif,framesLength,delay)
 
         return new Promise((resolve) => {
             fabric.Image.fromURL(dataUrl, (img) => {
@@ -195,7 +204,7 @@ export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
                         framesIndex++;
                     }
                     if (framesIndex === framesLength || status === STOP) {
-                        // img.stop();
+                        isRenderEnd = true;
                         framesIndex = 0;
                     }
                     ctx.drawImage(
@@ -260,13 +269,11 @@ export const mergedGifs = (gifs) =>new Promise(async (resolve, reject)=>{
         if (isRendered) {
             canvas.renderAll();
             startRecording()
-            const request = requestAnimationFrame(function render() {
+            requestAnimationFrame(function render() {
                 canvas.renderAll();
+                if (isRenderEnd) stopRecording();
                 fabric.util.requestAnimFrame(render);
             })
-            setTimeout(() => {
-                stopRecording(request);
-            }, gifDuration)
         }
     }
     inItCanvas();
