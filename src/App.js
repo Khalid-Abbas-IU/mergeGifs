@@ -11,6 +11,25 @@ function App() {
     const getMergedGifs =async ()=>{
         const blob = await mergedGifs(gifs)
         if (!blob) return;
+
+        // For Video
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'mergedGifs.webm';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+
+
+
+        // For Gif ( Please run node first for gif conversion)
+
         // const a = document.createElement('a');
         // a.target = "_blank"
         // var data = new FormData();
@@ -20,10 +39,9 @@ function App() {
         // oReq.onload = function (oEvent) {
         //     // Uploaded.
         //     if (oEvent.target.status === 200) {
-        //         const url = JSON.parse(oEvent.target.response).file
-        //         let fileName = url.split('/')
+        //         const url = oEvent.target.response
         //         a.href = url;
-        //         a.download = fileName[fileName.length - 1];
+        //         a.download = "output.gif";
         //         document.body.appendChild(a);
         //         a.click();
         //         setTimeout(() => {
@@ -39,17 +57,9 @@ function App() {
         // oReq.send(data);
 
 
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'mergedGifs.webm';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }, 100);
+
+
+
     }
   return (
     <div className="App">
